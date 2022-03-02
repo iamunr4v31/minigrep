@@ -1,5 +1,5 @@
 use std::{fs, error::Error, env};
-use colored::{Colorize};
+use colored::Colorize;
 
 
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
@@ -23,25 +23,21 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
 }
 
 pub fn search<'a>(query: &str, contents: &'a str) -> Vec<SearchResult<'a>> {
-    let mut results = Vec::new();
-    
-    for (lineno, line) in contents.lines().enumerate() {
-        if line.contains(query) {
-            results.push(SearchResult {line, lineno})
-        }
-    }
-    results
+    contents
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.contains(query))
+        .map(|(lineno, line)| SearchResult {line, lineno})
+        .collect()
 }
 
 pub fn search_case_insensitive<'a>(query: &str, contents: &'a str) -> Vec<SearchResult<'a>> {
-    let mut results = Vec::new();
-
-    for (lineno, line) in contents.lines().enumerate() {
-        if line.to_lowercase().contains(&query.to_lowercase()) {
-            results.push(SearchResult {line, lineno})
-        }
-    }
-    results
+    contents
+        .lines()
+        .enumerate()
+        .filter(|(_, line)| line.to_lowercase().contains(&query.to_lowercase()))
+        .map(|(lineno, line)| SearchResult {line, lineno})
+        .collect()
 }
 
 #[derive(Debug, PartialEq)]
@@ -57,12 +53,19 @@ pub struct Config {
 }
 
 impl Config{
-    pub fn new(args: &[String]) -> Result<Config, &str> {
+    pub fn new(mut args: env::Args) -> Result<Config, &'static str> {
         if args.len() < 3 {
             return Err("Expected two arguments, but got too little arguments");
         }
-        let query = args[1].clone();
-        let filename = args[2].clone();
+        args.next();
+        let query = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a query string"),
+        };
+        let filename = match args.next() {
+            Some(arg) => arg,
+            None => return Err("Didn't get a file path"),
+        };
         let case_sensitive = match env::var("CASE_SENSITIVE") {
             Err(_) => false,
             Ok(f) => match f.as_str() {
